@@ -3,86 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Farm (Online)</title>
+    <title>Hệ Thống Giám Sát IoT</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        /* GIAO DIỆN ĐẸP */
+        /* --- PHẦN TRANG TRÍ (CSS) - GIỮ NGUYÊN CỦA BẠN --- */
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             height: 100vh;
             margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #fff;
+            color: #333;
         }
+
+        /* Đồng hồ phía trên */
+        #clock {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 20px;
+            color: #555;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+
+        /* Thẻ chính chứa số liệu */
         .card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: white;
+            width: 400px;
             padding: 40px;
-            border-radius: 30px;
-            width: 320px;
+            border-radius: 25px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
             text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
         }
-        h2 { margin: 0; color: #81d4fa; font-size: 14px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 20px; }
-        #value-display { font-size: 100px; font-weight: 700; margin: 10px 0; text-shadow: 0 0 20px rgba(255,255,255,0.5); }
-        .unit { background: rgba(255, 255, 255, 0.2); padding: 5px 15px; border-radius: 20px; font-size: 14px; display: inline-block; margin-bottom: 30px; }
-        .status-bar { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; font-size: 13px; color: #bbb; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; background-color: #555; display: inline-block; }
-        .online { background-color: #00e676; box-shadow: 0 0 10px #00e676; }
+        
+        .card:hover { transform: translateY(-5px); }
+
+        /* Tiêu đề và Icon */
+        .icon { font-size: 60px; margin-bottom: 10px; display: block; }
+        h2 { margin: 0; color: #888; text-transform: uppercase; font-size: 14px; letter-spacing: 2px; }
+
+        /* Con số hiển thị */
+        #value-display {
+            font-size: 100px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 10px 0;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        /* Đơn vị đo */
+        .unit {
+            background: #e0f7fa;
+            color: #006064;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        /* Thanh trạng thái kết nối */
+        .status-bar {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background-color: #ccc;
+            display: inline-block;
+        }
+
+        /* --- HIỆU ỨNG MÀU SẮC --- */
+        .connected { color: #27ae60; font-weight: bold; }
+        .disconnected { color: #c0392b; font-weight: bold; }
+        
+        .bg-green { background-color: #27ae60; box-shadow: 0 0 10px #27ae60; }
+        .bg-red { background-color: #c0392b; box-shadow: 0 0 10px #c0392b; }
+
     </style>
 </head>
 <body>
 
+    <div id="clock">--:--:--</div>
+
     <div class="card">
-        <h2>Độ Ẩm Đất (Online)</h2>
+        <span class="icon">🌱</span>
+        <h2>Cảm biến độ ẩm (MQTT)</h2>
+
         <div id="value-display">--</div>
-        <div class="unit">Moisture Level</div>
+        
+        <div class="unit">Analog Value (0 - 1023)</div>
+
         <div class="status-bar">
-            <span id="status-dot" class="dot"></span>
-            <span id="status-text">Đang kết nối Server...</span>
+            <span id="status-dot" class="dot bg-red"></span>
+            <span id="status-text" class="disconnected">Đang kết nối Server...</span>
         </div>
     </div>
 
     <script>
-        // --- CẤU HÌNH CHO GITHUB PAGES (QUAN TRỌNG) ---
+        // --- PHẦN LOGIC MỚI (DÙNG MQTT) ---
+
+        // 1. Cập nhật đồng hồ
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('vi-VN');
+        }, 1000);
+
+        // 2. CẤU HÌNH MQTT (Chạy Local dùng cổng 8000)
         const TOPIC = "duan_nongnghiep_vn_usa_9999"; 
         const BROKER = "broker.hivemq.com";
-        const PORT = 8884; // <--- Cổng bảo mật 8884 bắt buộc cho GitHub
-        const CLIENT_ID = "web_github_" + Math.random().toString(16).substr(2, 8);
+        const PORT = 8000; // Cổng 8000 cho chạy trên máy tính (Local)
+        const CLIENT_ID = "web_beautiful_" + Math.random().toString(16).substr(2, 8);
 
         const client = new Paho.MQTT.Client(BROKER, PORT, CLIENT_ID);
+        
         const valDiv = document.getElementById('value-display');
         const stText = document.getElementById('status-text');
         const stDot = document.getElementById('status-dot');
 
+        // Khi mất kết nối
         client.onConnectionLost = (obj) => {
             stText.innerText = "Mất kết nối!";
-            stDot.className = "dot";
+            stText.className = "disconnected";
+            stDot.className = "dot bg-red";
         };
 
+        // Khi nhận dữ liệu
         client.onMessageArrived = (message) => {
             valDiv.innerText = message.payloadString;
-            // Hiệu ứng nháy
-            valDiv.style.textShadow = "0 0 40px #00e676";
-            setTimeout(() => valDiv.style.textShadow = "0 0 20px rgba(255,255,255,0.5)", 200);
             
-            stText.innerText = "● LIVE (Từ Việt Nam)";
-            stText.style.color = "#00e676";
+            // Hiệu ứng nháy màu xanh dương như cũ
+            valDiv.style.color = "#3498db"; 
+            setTimeout(() => {
+                valDiv.style.color = "#2c3e50"; 
+            }, 200);
+
+            stText.innerText = "● LIVE (Đã nhận)";
+            stText.className = "connected";
+            stDot.className = "dot bg-green";
         };
 
+        // Bắt đầu kết nối
         client.connect({
             onSuccess: () => {
-                stText.innerText = "Đã kết nối Cloud";
-                stDot.className = "dot online";
+                stText.innerText = "Đã kết nối Server";
+                stText.className = "connected";
+                stDot.className = "dot bg-green";
                 client.subscribe(TOPIC);
             },
-            onFailure: (e) => { stText.innerText = "Lỗi: " + e.errorMessage; },
-            useSSL: true // <--- Bắt buộc BẬT cho GitHub
+            onFailure: (e) => {
+                stText.innerText = "Lỗi: " + e.errorMessage;
+            },
+            useSSL: false // Chạy Local thì tắt SSL cho dễ kết nối
         });
     </script>
 </body>
