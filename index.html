@@ -6,92 +6,23 @@
     <title>Hệ Thống Giám Sát IoT</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        /* --- PHẦN TRANG TRÍ (CSS) - GIỮ NGUYÊN CỦA BẠN --- */
-        body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            height: 100vh;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #333;
-        }
-
-        /* Đồng hồ phía trên */
-        #clock {
-            font-size: 2rem;
-            font-weight: 300;
-            margin-bottom: 20px;
-            color: #555;
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
-        }
-
-        /* Thẻ chính chứa số liệu */
-        .card {
-            background: white;
-            width: 400px;
-            padding: 40px;
-            border-radius: 25px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-            text-align: center;
-            transition: transform 0.3s ease;
-        }
-        
+        /* --- GIỮ NGUYÊN CSS GIAO DIỆN ĐẸP CỦA BẠN --- */
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #333; }
+        #clock { font-size: 2rem; font-weight: 300; margin-bottom: 20px; color: #555; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
+        .card { background: white; width: 400px; padding: 40px; border-radius: 25px; box-shadow: 0 20px 50px rgba(0,0,0,0.15); text-align: center; transition: transform 0.3s ease; }
         .card:hover { transform: translateY(-5px); }
-
-        /* Tiêu đề và Icon */
         .icon { font-size: 60px; margin-bottom: 10px; display: block; }
         h2 { margin: 0; color: #888; text-transform: uppercase; font-size: 14px; letter-spacing: 2px; }
-
-        /* Con số hiển thị */
-        #value-display {
-            font-size: 100px;
-            font-weight: 700;
-            color: #2c3e50;
-            margin: 10px 0;
-            line-height: 1;
-            transition: color 0.2s;
-        }
-
-        /* Đơn vị đo */
-        .unit {
-            background: #e0f7fa;
-            color: #006064;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            display: inline-block;
-            margin-bottom: 20px;
-        }
-
-        /* Thanh trạng thái kết nối */
-        .status-bar {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .dot {
-            width: 12px; height: 12px;
-            border-radius: 50%;
-            background-color: #ccc;
-            display: inline-block;
-        }
-
-        /* --- HIỆU ỨNG MÀU SẮC --- */
+        #value-display { font-size: 100px; font-weight: 700; color: #2c3e50; margin: 10px 0; line-height: 1; transition: color 0.2s; }
+        .unit { background: #e0f7fa; color: #006064; padding: 5px 15px; border-radius: 20px; font-weight: bold; display: inline-block; margin-bottom: 20px; }
+        .status-bar { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; background-color: #ccc; display: inline-block; }
+        
+        /* Hiệu ứng màu */
         .connected { color: #27ae60; font-weight: bold; }
         .disconnected { color: #c0392b; font-weight: bold; }
-        
         .bg-green { background-color: #27ae60; box-shadow: 0 0 10px #27ae60; }
         .bg-red { background-color: #c0392b; box-shadow: 0 0 10px #c0392b; }
-
     </style>
 </head>
 <body>
@@ -100,7 +31,7 @@
 
     <div class="card">
         <span class="icon">🌱</span>
-        <h2>Cảm biến độ ẩm (MQTT)</h2>
+        <h2>Cảm biến độ ẩm (Online)</h2>
 
         <div id="value-display">--</div>
         
@@ -113,18 +44,20 @@
     </div>
 
     <script>
-        // --- PHẦN LOGIC MỚI (DÙNG MQTT) ---
-
+        // --- CẤU HÌNH QUAN TRỌNG CHO GITHUB ---
+        
         // 1. Cập nhật đồng hồ
         setInterval(() => {
             document.getElementById('clock').innerText = new Date().toLocaleTimeString('vi-VN');
         }, 1000);
 
-        // 2. CẤU HÌNH MQTT (Chạy Local dùng cổng 8000)
+        // 2. CẤU HÌNH MQTT (BẮT BUỘC DÙNG CỔNG 8884 VÀ SSL)
         const TOPIC = "duan_nongnghiep_vn_usa_9999"; 
         const BROKER = "broker.hivemq.com";
-        const PORT = 8000; // Cổng 8000 cho chạy trên máy tính (Local)
-        const CLIENT_ID = "web_beautiful_" + Math.random().toString(16).substr(2, 8);
+        
+        // SỬA Ở ĐÂY: Dùng cổng 8884 thay vì 8000
+        const PORT = 8884; 
+        const CLIENT_ID = "web_online_" + Math.random().toString(16).substr(2, 8);
 
         const client = new Paho.MQTT.Client(BROKER, PORT, CLIENT_ID);
         
@@ -132,32 +65,27 @@
         const stText = document.getElementById('status-text');
         const stDot = document.getElementById('status-dot');
 
-        // Khi mất kết nối
         client.onConnectionLost = (obj) => {
             stText.innerText = "Mất kết nối!";
             stText.className = "disconnected";
             stDot.className = "dot bg-red";
         };
 
-        // Khi nhận dữ liệu
         client.onMessageArrived = (message) => {
             valDiv.innerText = message.payloadString;
             
-            // Hiệu ứng nháy màu xanh dương như cũ
+            // Hiệu ứng nháy màu
             valDiv.style.color = "#3498db"; 
-            setTimeout(() => {
-                valDiv.style.color = "#2c3e50"; 
-            }, 200);
+            setTimeout(() => { valDiv.style.color = "#2c3e50"; }, 200);
 
-            stText.innerText = "● LIVE (Đã nhận)";
+            stText.innerText = "● LIVE (Từ Việt Nam)";
             stText.className = "connected";
             stDot.className = "dot bg-green";
         };
 
-        // Bắt đầu kết nối
         client.connect({
             onSuccess: () => {
-                stText.innerText = "Đã kết nối Server";
+                stText.innerText = "Đã kết nối Cloud";
                 stText.className = "connected";
                 stDot.className = "dot bg-green";
                 client.subscribe(TOPIC);
@@ -165,7 +93,7 @@
             onFailure: (e) => {
                 stText.innerText = "Lỗi: " + e.errorMessage;
             },
-            useSSL: false // Chạy Local thì tắt SSL cho dễ kết nối
+            useSSL: true // <--- QUAN TRỌNG: Phải bật cái này lên
         });
     </script>
 </body>
