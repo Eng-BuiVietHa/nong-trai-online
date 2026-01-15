@@ -2,38 +2,87 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Vietnam Farm Live</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Farm (Online)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
-        body { background: #000; color: #0f0; font-family: sans-serif; text-align: center; margin-top: 50px; }
-        #value { font-size: 100px; font-weight: bold; }
-        .status { color: #888; font-size: 12px; }
+        /* GIAO DIỆN ĐẸP */
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 40px;
+            border-radius: 30px;
+            width: 320px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        h2 { margin: 0; color: #81d4fa; font-size: 14px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 20px; }
+        #value-display { font-size: 100px; font-weight: 700; margin: 10px 0; text-shadow: 0 0 20px rgba(255,255,255,0.5); }
+        .unit { background: rgba(255, 255, 255, 0.2); padding: 5px 15px; border-radius: 20px; font-size: 14px; display: inline-block; margin-bottom: 30px; }
+        .status-bar { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; font-size: 13px; color: #bbb; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background-color: #555; display: inline-block; }
+        .online { background-color: #00e676; box-shadow: 0 0 10px #00e676; }
     </style>
 </head>
 <body>
-    <h1>VN FARM MONITOR</h1>
-    <div id="value">--</div>
-    <div class="status" id="status">Connecting...</div>
+
+    <div class="card">
+        <h2>Độ Ẩm Đất (Online)</h2>
+        <div id="value-display">--</div>
+        <div class="unit">Moisture Level</div>
+        <div class="status-bar">
+            <span id="status-dot" class="dot"></span>
+            <span id="status-text">Đang kết nối Server...</span>
+        </div>
+    </div>
 
     <script>
+        // --- CẤU HÌNH CHO GITHUB PAGES (QUAN TRỌNG) ---
         const TOPIC = "duan_nongnghiep_vn_usa_9999"; 
         const BROKER = "broker.hivemq.com";
-        const PORT = 8000;
-        const CLIENT_ID = "web_" + Math.random().toString(16).substr(2, 8);
+        const PORT = 8884; // <--- Cổng bảo mật 8884 bắt buộc cho GitHub
+        const CLIENT_ID = "web_github_" + Math.random().toString(16).substr(2, 8);
 
         const client = new Paho.MQTT.Client(BROKER, PORT, CLIENT_ID);
+        const valDiv = document.getElementById('value-display');
+        const stText = document.getElementById('status-text');
+        const stDot = document.getElementById('status-dot');
 
-        client.onMessageArrived = function (message) {
-            document.getElementById("value").innerText = message.payloadString;
-            document.getElementById("status").innerText = "LIVE: " + new Date().toLocaleTimeString();
+        client.onConnectionLost = (obj) => {
+            stText.innerText = "Mất kết nối!";
+            stDot.className = "dot";
+        };
+
+        client.onMessageArrived = (message) => {
+            valDiv.innerText = message.payloadString;
+            // Hiệu ứng nháy
+            valDiv.style.textShadow = "0 0 40px #00e676";
+            setTimeout(() => valDiv.style.textShadow = "0 0 20px rgba(255,255,255,0.5)", 200);
+            
+            stText.innerText = "● LIVE (Từ Việt Nam)";
+            stText.style.color = "#00e676";
         };
 
         client.connect({
-            onSuccess: function () {
-                document.getElementById("status").innerText = "Connected!";
+            onSuccess: () => {
+                stText.innerText = "Đã kết nối Cloud";
+                stDot.className = "dot online";
                 client.subscribe(TOPIC);
             },
-            useSSL: false
+            onFailure: (e) => { stText.innerText = "Lỗi: " + e.errorMessage; },
+            useSSL: true // <--- Bắt buộc BẬT cho GitHub
         });
     </script>
 </body>
